@@ -1,85 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solar Time Calculator</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 2rem;
-      max-width: 700px;
-      margin: auto;
-    }
-    h1 { color: #0ff; }
-    .info { margin-top: 1rem; }
-    .highlight { color: #0f0; font-weight: bold; }
-    .note { color: #ccc; font-size: 0.95em; margin-top: 1rem; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Time Calculator - Local Solar Time vs IST</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>🌞 Solar Time Calculator</h1>
-  <div id="output">Detecting location...</div>
+    <div class="container">
+        <header>
+            <h1>🌞 Solar Time Calculator</h1>
+            <p class="subtitle">Local Solar Time vs Indian Standard Time</p>
+        </header>
 
-  <script>
-    function calculateSolarNoon(longitude) {
-      const standardLongitude = 82.5;
-      const diff = longitude - standardLongitude;
-      const minutesDiff = diff * 4;
-      const istNoon = 12 * 60;
-      const localNoon = istNoon + minutesDiff;
-      const hr = Math.floor(localNoon / 60);
-      const min = Math.round(localNoon % 60);
-      return {
-        solarNoonTime: `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
-        degreeDiff: diff.toFixed(2),
-        minutesDiff: minutesDiff.toFixed(2),
-        rawMinutesDiff: minutesDiff
-      };
-    }
-
-    function getISTTimeNow() {
-      const now = new Date();
-      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-      return new Date(utc + 19800000);
-    }
-
-    function formatTime(dateObj) {
-      return dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-
-    navigator.geolocation.getCurrentPosition(position => {
-      const lat = position.coords.latitude.toFixed(4);
-      const lon = position.coords.longitude.toFixed(4);
-      const solarData = calculateSolarNoon(parseFloat(lon));
-
-      const istNow = getISTTimeNow();
-      const solarNow = new Date(istNow.getTime() + solarData.rawMinutesDiff * 60000);
-
-      document.getElementById("output").innerHTML = `
-        <div class="info">📍 <strong>Your Location:</strong> Latitude: <span class="highlight">${lat}</span>, Longitude: <span class="highlight">${lon}</span></div>
-
-        <div class="info">🕒 <strong>Current IST:</strong> <span class="highlight">${formatTime(istNow)}</span></div>
-
-        <div class="info">🕰️ <strong>Your Solar Noon Time (when sun is exactly overhead):</strong> <span class="highlight">${solarData.solarNoonTime}</span></div>
-
-        <div class="info">🕓 <strong>Your Current Local Solar Time:</strong> <span class="highlight">${formatTime(solarNow)}</span></div>
-
-        <div class="info">📏 <strong>Longitude Difference from IST Meridian (82.5°E):</strong> <span class="highlight">${solarData.degreeDiff}°</span></div>
-
-        <div class="info">⏳ <strong>Time Shift due to Longitude:</strong> <span class="highlight">${solarData.minutesDiff} minutes</span> (1° = 4 min)</div>
-
-        <div class="note">
-          📌 <strong>Note:</strong> India uses only one official time zone (IST based on 82.5°E). But in reality,
-          the sun reaches its highest point at different times across the country. This tool helps you know your exact <strong>solar time</strong>
-          for accurate religious timings (e.g., Zawaal, Muhurat) and astronomical observations.
+        <div class="status-bar" id="statusBar">
+            <div class="loading" id="loadingIndicator">
+                <span class="spinner"></span>
+                <span>Detecting your location...</span>
+            </div>
         </div>
-      `;
-    }, error => {
-      document.getElementById("output").innerText = "Failed to get location.";
-    });
-  </script>
+
+        <main id="mainContent" class="hidden">
+            <!-- Location Information -->
+            <section class="card location-card">
+                <h2>📍 Your Location</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">Latitude:</span>
+                        <span class="value" id="latitude">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Longitude:</span>
+                        <span class="value" id="longitude">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Distance from IST Meridian:</span>
+                        <span class="value" id="longitudeDifference">--</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Time Information -->
+            <section class="card time-card">
+                <h2>🕒 Time Information</h2>
+                <div class="time-grid">
+                    <div class="time-item">
+                        <div class="time-label">Current IST</div>
+                        <div class="time-value" id="currentIST">--:--:--</div>
+                    </div>
+                    <div class="time-item">
+                        <div class="time-label">Local Solar Time</div>
+                        <div class="time-value highlight" id="localSolarTime">--:--:--</div>
+                    </div>
+                    <div class="time-item">
+                        <div class="time-label">Solar Noon</div>
+                        <div class="time-value" id="solarNoon">--:--:--</div>
+                    </div>
+                    <div class="time-item">
+                        <div class="time-label">Time Difference</div>
+                        <div class="time-value" id="timeDifference">-- minutes</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Religious Timing -->
+            <section class="card religious-card">
+                <h2>🕌 Religious Timing Significance</h2>
+                <div class="religious-timing">
+                    <div class="timing-block zawaal" id="zawaalBlock">
+                        <h3>⏰ Zawaal Time (Islamic)</h3>
+                        <p class="timing-description">
+                            Zawaal is the time when the sun is at its zenith (highest point). 
+                            Prayer (Salah) is discouraged during this time.
+                        </p>
+                        <div class="timing-range">
+                            <span>🚫 Avoid prayers: </span>
+                            <span id="zawaalStart">--:--:--</span> to <span id="zawaalEnd">--:--:--</span>
+                        </div>
+                    </div>
+                    
+
+                </div>
+            </section>
+
+            <!-- Educational Information -->
+            <section class="card education-card">
+                <h2>📚 Understanding Solar Time</h2>
+                <div class="education-content">
+                    <div class="explanation">
+                        <h3>Why is Solar Time Different from IST?</h3>
+                        <p>
+                            Indian Standard Time (IST) is based on 82.5°E longitude, but India spans from 
+                            68°E to 97°E. Your local solar time depends on your exact longitude:
+                        </p>
+                        <ul>
+                            <li><strong>1° longitude = 4 minutes time difference</strong></li>
+                            <li>East of 82.5°E → Solar time is ahead of IST</li>
+                            <li>West of 82.5°E → Solar time is behind IST</li>
+                            <li>Solar noon = when sun is exactly overhead at your location</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="calculation-info">
+                        <h3>📊 Your Calculation:</h3>
+                        <div class="calc-details" id="calculationDetails">
+                            <p>Longitude difference: <span id="calcLongDiff">--</span>°</p>
+                            <p>Time adjustment: <span id="calcTimeAdj">--</span> minutes</p>
+                            <p>Direction: <span id="calcDirection">--</span></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div class="error-message hidden" id="errorMessage">
+            <div class="error-content">
+                <h3>❌ Location Access Required</h3>
+                <p>This app needs your location to calculate local solar time. Please:</p>
+                <ul>
+                    <li>Enable location services in your browser</li>
+                    <li>Grant permission when prompted</li>
+                    <li>Refresh the page to try again</li>
+                </ul>
+                <button onclick="requestLocation()" class="retry-button">🔄 Try Again</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                <strong>Note:</strong> Solar time calculations are based on your geographical longitude 
+                and are useful for religious observances, astronomical events, and understanding 
+                natural time cycles.
+            </p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
+
